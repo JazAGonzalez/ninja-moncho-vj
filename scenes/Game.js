@@ -13,6 +13,7 @@ export default class Game extends Phaser.Scene {
       triangulo: { points: 10, count: 0 },
       cuadrado: { points: 20, count: 0 },
       rombo: { points: 30, count: 0 },
+      bomb: { points: -10, count: 0},
     };
   }
 
@@ -32,6 +33,7 @@ export default class Game extends Phaser.Scene {
     this.load.image("triangulo", "../public/assets/triangulo.png");
     this.load.image("cuadrado", "../public/assets/cuadrado.png");
     this.load.image("rombo", "../public/assets/rombo.png");
+    this.load.image("bomb","../public/assets/bomb.png");
   }
 
   create() {
@@ -103,10 +105,19 @@ export default class Game extends Phaser.Scene {
       null,
       this
     );
+
+    //agregar collider entre recolectables y platofarmas
+    this.physics.add.collider(
+      this.recolectables, 
+      this.plataformas, 
+      this.onRecolectableBounced, 
+      null,
+      this 
+    );
   }
 
   update() {
-    if (this.gameOver && this.recolectable.isDown) {
+    if (this.gameOver && this.r.isDown) {
       this.scene.restart();
     }
     if (this.gameOver) {
@@ -132,7 +143,8 @@ export default class Game extends Phaser.Scene {
       return;
     }
     // crear recolectable
-    const tipos = ["triangulo", "cuadrado", "rombo"];
+    const tipos = ["triangulo", "cuadrado", "rombo", "bomb"];
+
     const tipo = Phaser.Math.RND.pick(tipos);
     let recolectable = this.recolectables.create(
       Phaser.Math.Between(10, 790),
@@ -140,7 +152,17 @@ export default class Game extends Phaser.Scene {
       tipo
     );
     recolectable.setVelocity(0, 100);
+
+    //asignar rebote
+    const rebote=Phaser.Math.FloatBetween (0.4, 0.8);
+    recolectable.setBounce(rebote);
+
+    //set data
+    recolectable.setData("points",this.shapes[tipo].points);
+    recolectable.setData("tipo",tipo);
+
   }
+
   /*if(nombreFig === "triangulo"){
       this.score += 10;
       this.shapes.triangulo.count += 1;
@@ -153,14 +175,17 @@ export default class Game extends Phaser.Scene {
       this.score += 30;
       this.shapes.rombo.count += 1;
     }*/
-  onShapeCollect(personaje, recolectable) {
-    console.log("recolectado ", recolectable.texture.key);
-    const nombreFig = recolectable.texture.key;
 
-    this.score += this.shapes[nombreFig].points;
+  onShapeCollect(personaje, recolectable) {
+    const nombreFig = recolectable.getData("tipo");
+    const points = recolectable.getData ("points");
+
+    this.score+= points;
+
     this.shapes[nombreFig].count += 1;
 
     console.table(this.shapes);
+    console.log("recolectado",recolectable.texture.key, points);
     console.log("score ", this.score);
     recolectable.destroy();
     //recolectable.disableBody(true, true);
@@ -173,6 +198,8 @@ export default class Game extends Phaser.Scene {
     );
 
     this.checkWin();
+
+    
   }
 
   checkWin() {
@@ -200,6 +227,15 @@ export default class Game extends Phaser.Scene {
         score: this.score,
         gameOver: this.gameOver,
       });
+    }
+  }
+  onRecolectableBounced(recolectable, plataforma) {
+    console.log("recolectable rebote");
+    let points = recolectable.getData("points");
+    points -= 5;
+    recolectable.setData("points", points);
+    if (points <= 0) {
+      recolectable.destroy();
     }
   }
 }
